@@ -28,26 +28,43 @@ mid_oct_o = 24;
 mid_oct_i = 13.5;
 small_oct_o = mid_oct_i-off;
 
-function calc_d2(d1, h=10, angle=1.161) =
-    let (
-        // Calculate radius 1
-        r1 = d1 / 2,
-        // Calculate change in radius using tan(angle) * height
-        delta_r = tan(angle) * h,
-        // Calculate radius 2
-        r2 = r1 - delta_r
-    )
-    // Return diameter 2 (2 * r2)
-    2 * r2;
+module base(d=mid_oct_i, h=7.9, d2=undef, h2=1, anchor=CENTER, spin=0, orient=UP) {
 
-module base(d=mid_oct_i, h=7.9, d2=undef) {
-    assert(h > 1);
+
+    function calc_d2(d1, h=10, angle=1.161) =
+        let (
+            // Calculate radius 1
+            r1 = d1 / 2,
+            // Calculate change in radius using tan(angle) * height
+            delta_r = tan(angle) * h,
+            // Calculate radius 2
+            r2 = r1 - delta_r
+        )
+        // Return diameter 2 (2 * r2)
+        2 * r2;
+
+    function calc_circum_mult(sides=8) = (1/cos(180/sides));
+
+    assert(h > h2);
 
     d2 = is_num(d2) ? d2 : calc_d2(d, h);
 
-        color_this([0, 1, 1, 0.5])
-            cyl(d=d, d2=d2, h=h, chamfer2=1, chamfang2=30, $fn=8, circum=true, anchor=BOTTOM)
-            children();
+    module _base() {
+        color_this([1, 0, 1, 0.5])
+        cyl(d1=d, d2=d2, h=h-h2, chamfer2=1, chamfang2=30, $fn=8, circum=true, anchor=anchor)
+            attach(BOTTOM, TOP)
+                color_this([0, 1, 1, 0.5])
+                cyl(d=d, h=h2, $fn=8, circum=true, anchor=anchor);
+    }
+
+    // pretend to be normal cyl because otherwise objects will be tilted
+    // d*(1/cos(180/8)) is same as enclosing a circle
+    attachable(anchor, spin, orient=orient, d=d*calc_circum_mult(), l=h) {
+        // up by half the flat-sided cylinder because those are stacked on top of each other
+        up(h2/2)
+            _base();
+        children();
+    }
 }
 
 module rod(d, l=20, pitch=2.5, flank_angle=45, anchor=BOTTOM, thread_mult=0.25, internal=false) {
@@ -56,7 +73,7 @@ module rod(d, l=20, pitch=2.5, flank_angle=45, anchor=BOTTOM, thread_mult=0.25, 
     children();
 }
 
-module nut(d, od=undef, id=undef, pitch=2.5, h=HEIGHT, flank_angle=60, slop=0, thread_mult=0.25)
+module nut(d, od=undef, id=undef, pitch=2.5, h=HEIGHT, h2=1, flank_angle=60, slop=0, thread_mult=0.25)
 {
     // set _od = od if od is defined
     // fallback to d + slop * 5 + 5
@@ -65,36 +82,36 @@ module nut(d, od=undef, id=undef, pitch=2.5, h=HEIGHT, flank_angle=60, slop=0, t
         od :
         d+(slop*5)+5;
 
-    // set _od = od if od is defined
-    // fallback to d + slop * 5 + 5
-
     if (is_num(od)) {
         assert(_od == od);
     }
 
     difference() {
         difference() {
-            base(_od, h);
+            base(_od, h, h2=h2);
+            // if id is present - add base-shaped hole
             if (is_num(id)) {
                 hide_this()
-                base(_od, h)
-                    attach(TOP, BOTTOM, inside=true, overlap=0.01)
-                    base(id, h);
+                    base(_od, h, h2=h2)
+                        attach(TOP, BOTTOM, inside=true, overlap=0.01)
+                            base(id, h, h2=h2);
             }
         }
+        // if d is present - add thread
         if (is_num(d) && d > 0) {
             hide_this()
-            base(_od, h)
-                attach(TOP, BOTTOM, inside=true, overlap=0.01)
-                rod(d=d+slop, l=HEIGHT*1.01, pitch=pitch, anchor=BOTTOM, flank_angle=flank_angle, $fn=$fn2, internal=true, thread_mult=thread_mult);
+                base(_od, h, h2=h2)
+                    attach(TOP, BOTTOM, inside=true, overlap=0.01)
+                        rod(d=d+slop, l=HEIGHT*1.01, pitch=pitch, anchor=BOTTOM, flank_angle=flank_angle, $fn=$fn2, internal=true, thread_mult=thread_mult);
         }
     }
 
+    // children can only attach, not diff
+    // however, difference() still works
     if ($children > 0) {
-        hide_this() cyl(d=_od, h=h, $fn=8, anchor=BOTTOM, circum=true)
-            {
+        hide_this()
+            cyl(d=_od, h=h, $fn=8, circum=true)
                 children($fn=$fn2);
-            }
     }
 }
 
@@ -106,18 +123,16 @@ module nut(d, od=undef, id=undef, pitch=2.5, h=HEIGHT, flank_angle=60, slop=0, t
 // ok it's just a static 13.22
 
 module push_fit(d1=mid_oct_i, h=6.9, d2=13.22) {
-    diff()
-    {
+    diff() {
         color_this([1, 0, 1, 0.5])
             base(d1, h, d2)
                 attach(BOTTOM, BOTTOM, inside=true, overlap=0.1)
                     rod(d=small_d+off, l=h*1.01+2, pitch=small_p, internal=true);
     }
     if ($children > 0) {
-        hide_this() cyl(d=d1, h=h*1.01+1, $fn=8, anchor=BOTTOM, circum=true)
-            {
+        hide_this()
+            cyl(d=d1, h=h*1.01+1, $fn=8, circum=true)
                 children($fn=$fn2);
-            }
     }
 }
 
@@ -131,29 +146,26 @@ base(d=mid_oct_o, h=HEIGHT)
             attach(TOP, BOTTOM)
                 rod(d=small_d, l=HEIGHT, pitch=small_p);
     // nuts
-    align(RIGHT, BOTTOM, overlap=-1)
+    attach(RIGHT, LEFT, overlap=-1)
     nut(d=large_d, od=large_oct_o, id=large_oct_i, pitch=large_p, slop=off)
-        align(RIGHT, BOTTOM, overlap=-1)
+        attach(RIGHT, LEFT, overlap=-1)
         nut(d=mid_d, od=mid_oct_o, id=mid_oct_i, pitch=mid_p, slop=off)
-            align(RIGHT, BOTTOM, overlap=-1)
+            attach(RIGHT, LEFT, overlap=-1)
             nut(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15)
                 // other
                 zflip()
-                align(RIGHT, BOTTOM, overlap=-1)
-                nut(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15)
-                {
-                    xflip()
+                attach(RIGHT, LEFT, overlap=-1)
+                xflip() // not sure why threads reverse without this. because of zflip?
+                nut(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15) {
                     attach(BOTTOM, TOP)
                         rod(d=mid_d, l=HEIGHT, pitch=mid_p);
-                    align(RIGHT, BOTTOM, overlap=-1)
-                        nut(od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15) {
-                            zflip()
-                            attach(TOP, BOTTOM)
+                    attach(RIGHT, LEFT, overlap=-1)
+                        nut(od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15, h2=3) {
+                            attach(BOTTOM, TOP)
                                 rod(d=small_d, l=HEIGHT, pitch=small_p);
                             zflip()
-                            align(RIGHT, BOTTOM, overlap=-1)
+                            attach(RIGHT, LEFT, overlap=-1, align=BOTTOM)
                                 push_fit();
                         }
                 }
-
 }
