@@ -56,7 +56,7 @@ module rod(d, l=20, pitch=2.5, flank_angle=45, anchor=BOTTOM, thread_mult=0.25, 
     children();
 }
 
-module nut(d, od=undef, pitch=2.5, h=HEIGHT, flank_angle=60, slop=0, thread_mult=0.25)
+module nut(d, od=undef, id=undef, pitch=2.5, h=HEIGHT, flank_angle=60, slop=0, thread_mult=0.25)
 {
     // set _od = od if od is defined
     // fallback to d + slop * 5 + 5
@@ -65,14 +65,29 @@ module nut(d, od=undef, pitch=2.5, h=HEIGHT, flank_angle=60, slop=0, thread_mult
         od :
         d+(slop*5)+5;
 
+    // set _od = od if od is defined
+    // fallback to d + slop * 5 + 5
+
     if (is_num(od)) {
         assert(_od == od);
     }
 
-    diff() {
-        base(_od, h)
-            attach(TOP, BOTTOM, inside=true, overlap=0.01)
-            rod(d=d+slop, l=HEIGHT*1.01, pitch=pitch, anchor=BOTTOM, flank_angle=flank_angle, $fn=$fn2, internal=true, thread_mult=thread_mult);
+    difference() {
+        difference() {
+            base(_od, h);
+            if (is_num(id)) {
+                hide_this()
+                base(_od, h)
+                    attach(TOP, BOTTOM, inside=true, overlap=0.01)
+                    base(id, h);
+            }
+        }
+        if (is_num(d) && d > 0) {
+            hide_this()
+            base(_od, h)
+                attach(TOP, BOTTOM, inside=true, overlap=0.01)
+                rod(d=d+slop, l=HEIGHT*1.01, pitch=pitch, anchor=BOTTOM, flank_angle=flank_angle, $fn=$fn2, internal=true, thread_mult=thread_mult);
+        }
     }
 
     if ($children > 0) {
@@ -86,8 +101,8 @@ module nut(d, od=undef, pitch=2.5, h=HEIGHT, flank_angle=60, slop=0, thread_mult
 // push fit stuff
 
 
-//push_fit_angle = 1.161;
-//push_fit_d2 = calc_d2(d1, h, push_fit_angle); // 13.220
+// push_fit_angle = 1.161;
+// push_fit_d2 = calc_d2(d1, h, push_fit_angle); // 13.220
 // ok it's just a static 13.22
 
 module push_fit(d1=mid_oct_i, h=6.9, d2=13.22) {
@@ -116,22 +131,22 @@ base(d=mid_oct_o, h=HEIGHT)
             attach(TOP, BOTTOM)
                 rod(d=small_d, l=HEIGHT, pitch=small_p);
     // nuts
-    //yrot(1.161)
     align(RIGHT, BOTTOM, overlap=-1)
-    nut(d=large_d, od=large_oct_o, pitch=large_p, slop=off)
+    nut(d=large_d, od=large_oct_o, id=large_oct_i, pitch=large_p, slop=off)
         align(RIGHT, BOTTOM, overlap=-1)
-        nut(d=mid_d, od=mid_oct_o, pitch=mid_p, slop=off)
+        nut(d=mid_d, od=mid_oct_o, id=mid_oct_i, pitch=mid_p, slop=off)
             align(RIGHT, BOTTOM, overlap=-1)
             nut(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15)
                 // other
                 zflip()
                 align(RIGHT, BOTTOM, overlap=-1)
-                base(d=small_oct_o, h=HEIGHT)
+                nut(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15)
                 {
+                    xflip()
                     attach(BOTTOM, TOP)
                         rod(d=mid_d, l=HEIGHT, pitch=mid_p);
                     align(RIGHT, BOTTOM, overlap=-1)
-                        base(d=small_oct_o, h=HEIGHT) {
+                        nut(od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15) {
                             zflip()
                             attach(TOP, BOTTOM)
                                 rod(d=small_d, l=HEIGHT, pitch=small_p);
