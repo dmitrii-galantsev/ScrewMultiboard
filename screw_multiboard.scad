@@ -24,13 +24,14 @@ HEIGHT = 10;
 
 large_oct_o = 27.2;
 large_oct_i = 21.4;
-mid_oct_o = 24;
+//mid_oct_o = large_oct_i-off;
+mid_oct_o = large_oct_i;
 mid_oct_i = 13.5;
-small_oct_o = mid_oct_i-off;
+//small_oct_o = mid_oct_i-off;
+//small_oct_o = mid_oct_i+off;
+small_oct_o = mid_oct_i;
 
 module base(d=mid_oct_i, h=7.9, d2=undef, h2=1, anchor=CENTER, spin=0, orient=UP) {
-
-
     function calc_d2(d1, h=10, angle=1.161) =
         let (
             // Calculate radius 1
@@ -115,27 +116,6 @@ module nut(d, od=undef, id=undef, pitch=2.5, h=HEIGHT, h2=1, flank_angle=60, slo
     }
 }
 
-// push fit stuff
-
-
-// push_fit_angle = 1.161;
-// push_fit_d2 = calc_d2(d1, h, push_fit_angle); // 13.220
-// ok it's just a static 13.22
-
-module push_fit(d1=mid_oct_i, h=6.9, d2=13.22) {
-    diff() {
-        color_this([1, 0, 1, 0.5])
-            base(d1, h, d2)
-                attach(BOTTOM, BOTTOM, inside=true, overlap=0.1)
-                    rod(d=small_d+off, l=h*1.01+2, pitch=small_p, internal=true);
-    }
-    if ($children > 0) {
-        hide_this()
-            cyl(d=d1, h=h*1.01+1, $fn=8, circum=true)
-                children($fn=$fn2);
-    }
-}
-
 base(d=mid_oct_o, h=HEIGHT)
 {
     // rods
@@ -160,12 +140,9 @@ base(d=mid_oct_o, h=HEIGHT)
                     attach(BOTTOM, TOP)
                         rod(d=mid_d, l=HEIGHT, pitch=mid_p);
                     attach(RIGHT, LEFT, overlap=-1)
-                        nut(od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15, h2=3) {
+                        nut(od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15, h2=3)
                             attach(BOTTOM, TOP)
                                 rod(d=small_d, l=HEIGHT, pitch=small_p);
-                            zflip()
-                            attach(RIGHT, LEFT, overlap=-1, align=BOTTOM)
-                                push_fit();
-                        }
                 }
 }
+
