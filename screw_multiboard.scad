@@ -71,7 +71,7 @@ module base(d=mid_oct_i, h=7.9, d2=undef, h2=1, anchor=CENTER, spin=0, orient=UP
 module rod(d, l=20, pitch=2.5, flank_angle=45, anchor=BOTTOM, thread_mult=0.25, internal=false) {
     $fn = $fn2;
     trapezoidal_threaded_rod(d=d, l=l, pitch=pitch, anchor=anchor, thread_depth=pitch*thread_mult, internal=internal, flank_angle=flank_angle)
-    children();
+        children();
 }
 
 module nut(d, od=undef, id=undef, pitch=2.5, h=HEIGHT, h2=1, flank_angle=60, slop=0, thread_mult=0.25)
@@ -116,6 +116,36 @@ module nut(d, od=undef, id=undef, pitch=2.5, h=HEIGHT, h2=1, flank_angle=60, slo
     }
 }
 
+module large_nut(d=large_d, od=large_oct_o, id=large_oct_i, pitch=large_p, slop=off) {
+    nut(d=d, od=od, id=id, pitch=pitch, slop=slop)
+        children();
+}
+
+module mid_nut(d=mid_d, od=mid_oct_o, id=mid_oct_i, pitch=mid_p, slop=off) {
+    nut(d=d, od=od, id=id, pitch=pitch, slop=slop)
+        children();
+}
+
+module small_nut(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15, rod=false, small_rod=true) {
+    nut(d=rod ? undef : d, od=od, pitch=pitch, slop=slop, thread_mult=thread_mult, h2=3)
+    {
+        children();
+        if (rod)
+            attach(BOTTOM, TOP)
+                rod(d=small_rod ? d : mid_d, l=HEIGHT, pitch=pitch);
+    }
+}
+
+module small_nut_small_rod(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15) {
+    small_nut(d=d, od=od, pitch=pitch, slop=slop, thread_mult=thread_mult, rod=true, small_rod=true)
+        children();
+}
+
+module small_nut_mid_rod(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15) {
+    small_nut(d=d, od=od, pitch=pitch, slop=slop, thread_mult=thread_mult, rod=true, small_rod=false)
+        children();
+}
+
 base(d=mid_oct_o, h=HEIGHT)
 {
     // rods
@@ -127,22 +157,17 @@ base(d=mid_oct_o, h=HEIGHT)
                 rod(d=small_d, l=HEIGHT, pitch=small_p);
     // nuts
     attach(RIGHT, LEFT, overlap=-1)
-    nut(d=large_d, od=large_oct_o, id=large_oct_i, pitch=large_p, slop=off)
+    large_nut()
         attach(RIGHT, LEFT, overlap=-1)
-        nut(d=mid_d, od=mid_oct_o, id=mid_oct_i, pitch=mid_p, slop=off)
+        mid_nut()
             attach(RIGHT, LEFT, overlap=-1)
-            nut(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15)
+            small_nut()
                 // other
                 zflip()
                 attach(RIGHT, LEFT, overlap=-1)
                 xflip() // not sure why threads reverse without this. because of zflip?
-                nut(d=small_d, od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15) {
-                    attach(BOTTOM, TOP)
-                        rod(d=mid_d, l=HEIGHT, pitch=mid_p);
+                small_nut_mid_rod()
                     attach(RIGHT, LEFT, overlap=-1)
-                        nut(od=small_oct_o, pitch=small_p, slop=off*1.5, thread_mult=0.15, h2=3)
-                            attach(BOTTOM, TOP)
-                                rod(d=small_d, l=HEIGHT, pitch=small_p);
-                }
+                        small_nut_small_rod();
 }
 
